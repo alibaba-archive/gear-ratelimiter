@@ -9,31 +9,54 @@ import (
 /*
 DRedisClient for implement RedisClient interface by default
 */
-type DRedisClient struct {
+type DefaultRedisClient struct {
 	*redis.Client
 }
 
 //RateDel ...
-func (c *DRedisClient) RateDel(key string) error {
+func (c *DefaultRedisClient) RateDel(key string) error {
 	return c.Del(key).Err()
 }
 
 //RateEvalSha ...
-func (c *DRedisClient) RateEvalSha(sha1 string, keys []string, args ...interface{}) (interface{}, error) {
+func (c *DefaultRedisClient) RateEvalSha(sha1 string, keys []string, args ...interface{}) (interface{}, error) {
 	return c.EvalSha(sha1, keys, args...).Result()
 }
 
 //RateScriptLoad ...
-func (c *DRedisClient) RateScriptLoad(script string) (string, error) {
+func (c *DefaultRedisClient) RateScriptLoad(script string) (string, error) {
 	return c.ScriptLoad(script).Result()
 }
 
 //RateSet ...
-func (c *DRedisClient) RateSet(key string, val string) error {
+func (c *DefaultRedisClient) RateSet(key string, val string) error {
 	return c.Set(key, val, time.Hour).Err()
 }
 
-//DClusterClient for implement Cluster RedisClient interface by default
-type DClusterClient struct {
-	*redis.Client
+//DefaultClusterClient for implement Cluster RedisClient interface by default
+type DefaultClusterClient struct {
+	*redis.ClusterClient
+}
+
+//RateDel ...
+func (c *DefaultClusterClient) RateDel(key string) error {
+	return c.Del(key).Err()
+}
+
+//RateEvalSha ...
+func (c *DefaultClusterClient) RateEvalSha(sha1 string, keys []string, args ...interface{}) (interface{}, error) {
+	return c.EvalSha(sha1, keys, args...).Result()
+}
+
+//RateScriptLoad ...
+func (c *DefaultClusterClient) RateScriptLoad(script string) (string, error) {
+	var sha1 string
+	err := c.ForEachMaster(func(client *redis.Client) error {
+		res, err := client.ScriptLoad(script).Result()
+		if err == nil {
+			sha1 = res
+		}
+		return err
+	})
+	return sha1, err
 }

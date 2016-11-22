@@ -2,7 +2,7 @@
 Smart rate limiter middleware for Gear.
 
 
-##Examples 1
+## Example with gear
     var limiter *smartlimiter.Limiter
 
     func init() {
@@ -11,6 +11,10 @@ Smart rate limiter middleware for Gear.
         })
         var err error
         limiter, err = smartlimiter.New(smartlimiter.Options{
+            GetID: func(req *http.Request) string {
+                    ra, _, _ := net.SplitHostPort(req.RemoteAddr)
+                    return net.ParseIP(ra).String()
+                },
             Redis:    &smartlimiter.DRedisClient{client},
             Max:      10,
             Duration: time.Minute, // limit to 1000 requests in 1 minute.

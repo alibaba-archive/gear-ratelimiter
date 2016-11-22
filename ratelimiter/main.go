@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net"
+	"net/http"
 	"os"
 	"time"
 
@@ -19,14 +21,17 @@ func init() {
 	})
 	var err error
 	limiter, err = smartlimiter.New(smartlimiter.Options{
-		Redis:    &smartlimiter.DRedisClient{client},
+		GetID: func(req *http.Request) string {
+			ra, _, _ := net.SplitHostPort(req.RemoteAddr)
+			return net.ParseIP(ra).String()
+		},
+		Redis:    &smartlimiter.DefaultRedisClient{client},
 		Max:      10,
 		Duration: time.Minute, // limit to 1000 requests in 1 minute.
 		Policy: map[string][]int{
 			"GET /a": []int{3, 5 * 1000},
 			"GET /b": []int{5, 60 * 1000},
 			"/c":     []int{6, 60 * 1000},
-			"GET":    []int{7, 10 * 1000},
 		},
 	})
 	if err != nil {
@@ -34,6 +39,7 @@ func init() {
 	}
 }
 func main() {
+
 	app := gear.New()
 	logger := &middleware.DefaultLogger{W: os.Stdout}
 	app.Use(middleware.NewLogger(logger))

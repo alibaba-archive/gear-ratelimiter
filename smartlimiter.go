@@ -2,6 +2,7 @@ package smartlimiter
 
 import (
 	"errors"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -21,15 +22,15 @@ type Options struct {
 	Prefix   string
 	Max      int
 	Duration time.Duration
-	GetID    func() string
+	GetID    func(req *http.Request) string
 	Policy   map[string][]int
 }
 
 //Limiter ...
 type Limiter struct {
 	sha1, prefix, duration, max string
-	rc                          RedisClient
-	opts                        Options
+
+	opts Options
 }
 
 //Result ...
@@ -71,7 +72,7 @@ func (l *Limiter) Get(id string, policy ...int) (Result, error) {
 
 // Remove remove limiter record for id
 func (l *Limiter) Remove(id string) error {
-	return l.rc.RateDel(l.prefix + id)
+	return l.opts.Redis.RateDel(l.prefix + id)
 }
 
 func (l *Limiter) buildResult(id string, args []interface{}) (Result, error) {
@@ -97,11 +98,11 @@ func (l *Limiter) buildResult(id string, args []interface{}) (Result, error) {
 }
 
 func (l *Limiter) getLimit(keys []string, args ...interface{}) (res interface{}, err error) {
-	res, err = l.rc.RateEvalSha(l.sha1, keys, args...)
+	res, err = l.opts.Redis.RateEvalSha(l.sha1, keys, args...)
 	if err != nil && isNoScriptErr(err) {
-		_, err = l.rc.RateScriptLoad(lua)
+		_, err = l.opts.Redis.RateScriptLoad(lua)
 		if err == nil {
-			res, err = l.rc.RateEvalSha(l.sha1, keys, args...)
+			res, err = l.opts.Redis.RateEvalSha(l.sha1, keys, args...)
 		}
 	}
 	return
@@ -134,7 +135,7 @@ func New(o Options) (*Limiter, error) {
 		duration = strconv.FormatInt(int64(o.Duration/time.Millisecond), 10)
 	}
 
-	limiter = &Limiter{rc: r, sha1: sha1, prefix: prefix, max: max, duration: duration}
+	limiter = &Limiter{sha1: sha1, prefix: prefix, max: max, duration: duration}
 	limiter.opts = o
 	return limiter, nil
 }

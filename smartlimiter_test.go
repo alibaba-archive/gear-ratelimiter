@@ -13,13 +13,12 @@ import (
 )
 
 // init Test
-func TestRatelimiterGo(t *testing.T) {
+func TestSmartlimiterGo(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "RatelimiterGo Suite")
+	RunSpecs(t, "Smartlimiter Suite")
 }
 
 var client *redis.Client
-var limiter *smartlimiter.Limiter
 
 var _ = BeforeSuite(func() {
 	client = redis.NewClient(&redis.Options{
@@ -35,23 +34,40 @@ var _ = AfterSuite(func() {
 	Expect(err).ShouldNot(HaveOccurred())
 })
 var _ = Describe("smartlimiter", func() {
-	Describe("smartlimiter.New, With default options", func() {
+	Context("smartlimiter.New, With default options", func() {
 		var limiter *smartlimiter.Limiter
 		var id string = genID()
 		It("ratelimiter.New should be", func() {
-			res, err := smartlimiter.New(&smartlimiter.DRedisClient{client}, smartlimiter.Options{})
+			res, err := smartlimiter.New(smartlimiter.Options{
+				Redis: &smartlimiter.DefaultRedisClient{client},
+			})
 			Expect(err).ToNot(HaveOccurred())
 			limiter = res
 		})
 		It("limiter.Get should be", func() {
 			res, err := limiter.Get(id)
+
 			Expect(err).ToNot(HaveOccurred())
 			Expect(res.Total).To(Equal(100))
 			Expect(res.Remaining).To(Equal(99))
 			Expect(res.Duration).To(Equal(time.Duration(60 * 1e9)))
 			Expect(res.Reset.UnixNano() > time.Now().UnixNano()).To(Equal(true))
 		})
+
+		It("limiter.Remove should be", func() {
+			err := limiter.Remove(id)
+			Expect(err).ToNot(HaveOccurred())
+
+			err2 := limiter.Remove(id)
+			Expect(err2).ToNot(HaveOccurred())
+
+			res3, err3 := limiter.Get(id)
+			Expect(err3).ToNot(HaveOccurred())
+			Expect(res3.Total).To(Equal(100))
+			Expect(res3.Remaining).To(Equal(99))
+		})
 	})
+
 })
 
 func genID() string {

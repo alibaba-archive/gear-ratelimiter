@@ -23,7 +23,12 @@ func NewLimiter(limiter *Limiter) gear.Middleware {
 				}
 			}
 		}
-		res, err := limiter.Get(ctx.IP().String(), p...)
+		if o.GetID != nil {
+			key = o.GetID(ctx.Req)
+		} else {
+			key = ctx.IP().String()
+		}
+		res, err := limiter.Get(key, p...)
 		if err != nil {
 			return nil
 		}
