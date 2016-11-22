@@ -11,10 +11,8 @@ import (
 	"github.com/teambition/gear/middleware"
 )
 
-var options *smartlimiter.Options
-
-func init() {
-	options = &smartlimiter.Options{
+func main() {
+	limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
 		GetID: func(req *http.Request) string {
 			ra, _, _ := net.SplitHostPort(req.RemoteAddr)
 			return net.ParseIP(ra).String()
@@ -22,21 +20,17 @@ func init() {
 		Max:      10,
 		Duration: time.Minute, // limit to 1000 requests in 1 minute.
 		Policy: map[string][]int{
-			"GET /a": []int{3, 5 * 1000},
+			"GET /a": []int{3, 5 * 1000, 10, 60 * 1000},
 			"GET /b": []int{5, 60 * 1000},
 			"/c":     []int{6, 60 * 1000},
 		},
 		RedisAddr: "127.0.0.1:6379",
-	}
-}
-func main() {
-
+	})
 	app := gear.New()
 	logger := &middleware.DefaultLogger{W: os.Stdout}
 	app.Use(middleware.NewLogger(logger))
-
 	// Add rate limiter middleware
-	app.Use(smartlimiter.NewLimiter(options))
+	app.Use(limiter)
 
 	router := gear.NewRouter()
 	router.Get("/", func(ctx *gear.Context) error {
