@@ -20,6 +20,7 @@ func main() {
 		Max:      10,
 		Duration: time.Minute, // limit to 1000 requests in 1 minute.
 		Policy: map[string][]int{
+			"/":      []int{16, 6 * 1000},
 			"GET /a": []int{3, 5 * 1000, 10, 60 * 1000},
 			"GET /b": []int{5, 60 * 1000},
 			"/c":     []int{6, 60 * 1000},

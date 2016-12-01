@@ -19,6 +19,7 @@ Smart rate limiter middleware for Gear.
 		Max:      10,
 		Duration: time.Minute, // limit to 1000 requests in 1 minute.
 		Policy: map[string][]int{
+			"/":      []int{16, 6 * 1000},
 			"GET /a": []int{3, 5 * 1000, 10, 60 * 1000},
 			"GET /b": []int{5, 60 * 1000},
 			"/c":     []int{6, 60 * 1000},
@@ -34,7 +35,8 @@ return a express gear middleware.
 - `options.Duration`: *Optional*, {Number}, of limit in milliseconds, default to `3600000`
 - `options.GetID`: *Optional*, {Function}, generate a identifier for requests, default to user's IP
 - `options.Policy`: *Required*, {map[string][]int}, limit policy
+
 ##Example
 Try into github.com/teambition/gear-ratelimiter directory:  
 
-	go run ratelimiter/main.go
+    go run ratelimiter/main.go

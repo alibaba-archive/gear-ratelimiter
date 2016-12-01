@@ -29,12 +29,12 @@ func initLimiter(opts *Options) {
 	options = opts
 	var err error
 	client := redis.NewClient(&redis.Options{
-		Addr: opts.RedisAddr,
+		Addr: options.RedisAddr,
 	})
 	limiter, err = ratelimiter.New(&DefaultRedisClient{client}, ratelimiter.Options{
-		Prefix:   opts.Prefix,
-		Max:      opts.Max,
-		Duration: opts.Duration, // limit to 1000 requests in 1 minute.
+		Prefix:   options.Prefix,
+		Max:      options.Max,
+		Duration: options.Duration, // limit to 1000 requests in 1 minute.
 	})
 	if err != nil {
 		panic(err)
@@ -49,9 +49,14 @@ func getArgs(ctx *gear.Context) (string, []int) {
 		if p, ok = options.Policy[key]; !ok {
 			key = ctx.Method
 			if p, ok = options.Policy[key]; !ok {
-				return key, nil
+				return key, make([]int, 0, 0)
 			}
 		}
+	}
+	if options.GetID != nil {
+		key = options.GetID(ctx.Req) + key
+	} else {
+		key = ctx.IP().String() + key
 	}
 	return key, p
 }
@@ -61,6 +66,9 @@ func NewLimiter(opts *Options) gear.Middleware {
 	initLimiter(opts)
 	return func(ctx *gear.Context) error {
 		key, p := getArgs(ctx)
+		if len(p) < 1 {
+			return nil
+		}
 		res, err := limiter.Get(key, p...)
 		if err != nil {
 			return nil
