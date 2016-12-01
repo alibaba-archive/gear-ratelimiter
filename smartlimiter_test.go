@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -345,5 +346,157 @@ var _ = Describe("smartLimiter", func() {
 		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("6"))
 		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
 		res.Body.Close()
+	})
+	It("smartLimiter with two policys that should be", func() {
+
+		id := genID()
+		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+			GetID: func(req *http.Request) string {
+				return id
+			},
+			RedisAddr: "127.0.0.1:6379",
+			Policy: map[string][]int{
+				"/f": []int{2, 2 * 1000, 1, 1 * 1000},
+			},
+		})
+		app := gear.New()
+		app.Use(limiter)
+		router := gear.NewRouter()
+		router.Get("/f", func(ctx *gear.Context) error {
+			return ctx.HTML(200, "")
+		})
+		app.UseHandler(router)
+
+		srv := app.Start()
+		defer srv.Close()
+		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.StatusCode).To(Equal(200))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("1"))
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.StatusCode).To(Equal(200))
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("0"))
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.StatusCode).To(Equal(429))
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+
+		time.Sleep(2 * time.Second)
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.StatusCode).To(Equal(200))
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("1"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("0"))
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.StatusCode).To(Equal(429))
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("1"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+
+		time.Sleep(2 * time.Second)
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.StatusCode).To(Equal(200))
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("1"))
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("0"))
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
+		Expect(res.StatusCode).To(Equal(429))
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+
+		res.Body.Close()
+	})
+	It("smartLimiter with multi-policy that should be", func() {
+
+		id := genID()
+		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+			GetID: func(req *http.Request) string {
+				return id
+			},
+			RedisAddr: "127.0.0.1:6379",
+			Policy: map[string][]int{
+				"/g": []int{2, 2 * 1000, 1, 1 * 1000, 3, 1 * 1000, 4, 10 * 1000},
+			},
+		})
+		app := gear.New()
+		app.Use(limiter)
+		router := gear.NewRouter()
+		router.Get("/g", func(ctx *gear.Context) error {
+			return ctx.HTML(200, "")
+		})
+		app.UseHandler(router)
+
+		srv := app.Start()
+		defer srv.Close()
+		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		Expect(res.StatusCode).To(Equal(200))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+
+		RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		Expect(res.StatusCode).To(Equal(429))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+
+		time.Sleep(2 * time.Second)
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("1"))
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		Expect(res.StatusCode).To(Equal(429))
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+
+		time.Sleep(1 * time.Second)
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("3"))
+
+		RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+
+		time.Sleep(2 * time.Second)
+		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+
+		res.Body.Close()
+	})
+	It("smartLimiter with wrong multi-policy that should be", func() {
+		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+			GetID: func(req *http.Request) string {
+				return genID()
+			},
+			RedisAddr: "127.0.0.1:6379",
+			Policy: map[string][]int{
+				"/g": []int{2, 2 * 1000, 1 * 1000, 3, 1 * 1000, 4, 10 * 1000},
+			},
+		})
+		app := gear.New()
+		app.Use(limiter)
+		router := gear.NewRouter()
+		router.Get("/g", func(ctx *gear.Context) error {
+			return ctx.HTML(200, "")
+		})
+		app.UseHandler(router)
+
+		srv := app.Start()
+		defer srv.Close()
+		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+		Expect(res.StatusCode).To(Equal(200))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal(""))
 	})
 })
