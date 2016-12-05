@@ -1,4 +1,4 @@
-package smartlimiter_test
+package ratelimiter_test
 
 import (
 	"compress/gzip"
@@ -11,11 +11,10 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/teambition/gear-ratelimiter"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/teambition/gear"
+	"github.com/teambition/gear-ratelimiter"
 )
 
 // ------Helpers for help test --------
@@ -90,26 +89,18 @@ func genID() string {
 }
 
 //--------- End ---------
-func TestSmartLimiterGo(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "SmartLimiterGo Suite")
-}
+func TestRateLimiter(t *testing.T) {
 
-var _ = BeforeSuite(func() {
-
-})
-
-var _ = AfterSuite(func() {
-
-})
-var _ = Describe("smartLimiter", func() {
-	It("smartLimiter with default Options should be", func() {
-
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+	t.Run("RateLimiter with default Options should be", func(t *testing.T) {
+		assert := assert.New(t)
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		app.Use(func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
 		})
@@ -117,22 +108,26 @@ var _ = Describe("smartLimiter", func() {
 		defer srv.Close()
 		res, err := RequestBy("GET", "http://"+srv.Addr().String())
 
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal(""))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal(""))
+		assert.Nil(err)
+		assert.Equal(200, res.StatusCode)
+		assert.Equal("", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
-	It("smartLimiter with get /a path should be", func() {
+	t.Run("RateLimiter with get /a path should be", func(t *testing.T) {
+		assert := assert.New(t)
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET /a": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/a", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -143,24 +138,28 @@ var _ = Describe("smartLimiter", func() {
 		defer srv.Close()
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/a")
 
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("Retry-After")).To(Equal(""))
-		Expect(res.Header.Get("X-Ratelimit-Reset")).ToNot(Equal(""))
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("6"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("", res.Header.Get("Retry-After"))
+		assert.NotEqual("", res.Header.Get("X-Ratelimit-Reset"))
+		assert.Equal("6", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
-	It("smartLimiter with post /a path should be", func() {
+	t.Run("RateLimiter with post /a path should be", func(t *testing.T) {
+		assert := assert.New(t)
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"POST /a": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Post("/a", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -170,22 +169,26 @@ var _ = Describe("smartLimiter", func() {
 		srv := app.Start()
 		defer srv.Close()
 		res, err := RequestBy("POST", "http://"+srv.Addr().String()+"/a")
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("6"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("6", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
-	It("smartLimiter with / path should be", func() {
+	t.Run("RateLimiter with / path should be", func(t *testing.T) {
+		assert := assert.New(t)
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			Policy: map[string][]int{
 				"/": []int{6, 5 * 1000},
 			},
 			RedisAddr: "127.0.0.1:6379",
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		app.Use(func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
 		})
@@ -193,23 +196,27 @@ var _ = Describe("smartLimiter", func() {
 		defer srv.Close()
 		res, err := RequestBy("GET", "http://"+srv.Addr().String())
 
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("6"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("6", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
 
-	It("smartLimiter with /a path should be", func() {
+	t.Run("RateLimiter with /a path should be", func(t *testing.T) {
+		assert := assert.New(t)
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/a": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/a", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -220,23 +227,27 @@ var _ = Describe("smartLimiter", func() {
 		defer srv.Close()
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/a")
 
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("6"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("6", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
 
-	It("smartLimiter with GET path should be", func() {
+	t.Run("RateLimiter with GET path should be", func(t *testing.T) {
+		assert := assert.New(t)
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/b", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -247,22 +258,26 @@ var _ = Describe("smartLimiter", func() {
 		defer srv.Close()
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/b")
 
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("6"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("6", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
-	It("smartLimiter with GET path and twice request should be", func() {
-
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+	t.Run("ratelimiter with GET path and twice request should be", func(t *testing.T) {
+		assert := assert.New(t)
+		id := genID()
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return id
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/c", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -272,24 +287,30 @@ var _ = Describe("smartLimiter", func() {
 		srv := app.Start()
 		defer srv.Close()
 		RequestBy("GET", "http://"+srv.Addr().String()+"/c")
+		RequestBy("GET", "http://"+srv.Addr().String()+"/c")
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/c")
 
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("6"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("3"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("6", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("3", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
-	It("smartLimiter with /d and the request exceeds the limiter that should be", func() {
+	t.Run("ratelimiter with /d and the request exceeds the limiter that should be", func(t *testing.T) {
+		assert := assert.New(t)
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		id := genID()
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return id
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/d": []int{3, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/d", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -302,24 +323,25 @@ var _ = Describe("smartLimiter", func() {
 		RequestBy("GET", "http://"+srv.Addr().String()+"/d")
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/d")
 
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("3"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("0"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("3", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("0", res.Header.Get("X-Ratelimit-Remaining"))
 
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/d")
-		Expect(res.StatusCode).To(Equal(429))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("3"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
-		Expect(res.Header.Get("Retry-After")).ToNot(Equal(""))
+		assert.Equal(429, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("3", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
+		assert.NotEqual("", res.Header.Get("Retry-After"))
 		res.Body.Close()
 	})
 
-	It("smartLimiter with GetID func request should be", func() {
+	t.Run("RateLimiter with GetID func request should be", func(t *testing.T) {
+		assert := assert.New(t)
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-			GetID: func(req *http.Request) string {
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
 			RedisAddr: "127.0.0.1:6379",
@@ -328,7 +350,7 @@ var _ = Describe("smartLimiter", func() {
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/e", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -341,17 +363,18 @@ var _ = Describe("smartLimiter", func() {
 		RequestBy("GET", "http://"+srv.Addr().String()+"/e")
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/e")
 
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("6"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("6", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
-	It("smartLimiter with two policys that should be", func() {
+	t.Run("RateLimiter with two policys that should be", func(t *testing.T) {
+		assert := assert.New(t)
 
 		id := genID()
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-			GetID: func(req *http.Request) string {
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
 				return id
 			},
 			RedisAddr: "127.0.0.1:6379",
@@ -360,7 +383,7 @@ var _ = Describe("smartLimiter", func() {
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/f", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -370,58 +393,57 @@ var _ = Describe("smartLimiter", func() {
 		srv := app.Start()
 		defer srv.Close()
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("1"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("1", res.Header.Get("X-Ratelimit-Remaining"))
 
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("0"))
-
+		assert.Equal(200, res.StatusCode)
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("0", res.Header.Get("X-Ratelimit-Remaining"))
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
-
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.StatusCode).To(Equal(429))
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+		assert.Equal(429, res.StatusCode)
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
 		time.Sleep(2 * time.Second)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("1"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("0"))
+		assert.Equal(200, res.StatusCode)
+		assert.Equal("1", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("0", res.Header.Get("X-Ratelimit-Remaining"))
 
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.StatusCode).To(Equal(429))
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("1"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+		assert.Equal(429, res.StatusCode)
+		assert.Equal("1", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
 		time.Sleep(2 * time.Second)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("1"))
+		assert.Equal(200, res.StatusCode)
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("1", res.Header.Get("X-Ratelimit-Remaining"))
 
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("0"))
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("0", res.Header.Get("X-Ratelimit-Remaining"))
 
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
-		Expect(res.StatusCode).To(Equal(429))
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+		assert.Equal(429, res.StatusCode)
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
 		res.Body.Close()
 	})
-	It("smartLimiter with multi-policy that should be", func() {
+	t.Run("ratelimiter with multi-policy that should be", func(t *testing.T) {
+		assert := assert.New(t)
 
 		id := genID()
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-			GetID: func(req *http.Request) string {
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
 				return id
 			},
 			RedisAddr: "127.0.0.1:6379",
@@ -430,7 +452,7 @@ var _ = Describe("smartLimiter", func() {
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/g", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -440,43 +462,44 @@ var _ = Describe("smartLimiter", func() {
 		srv := app.Start()
 		defer srv.Close()
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/g")
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
 
 		RequestBy("GET", "http://"+srv.Addr().String()+"/g")
 
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
-		Expect(res.StatusCode).To(Equal(429))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+		assert.Equal(429, res.StatusCode)
+		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
 		time.Sleep(2 * time.Second)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("1"))
+		assert.Equal("1", res.Header.Get("X-Ratelimit-Limit"))
 
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
-		Expect(res.StatusCode).To(Equal(429))
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+		assert.Equal(429, res.StatusCode)
+		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
 		time.Sleep(1 * time.Second)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("3"))
+		assert.Equal("3", res.Header.Get("X-Ratelimit-Limit"))
 
 		RequestBy("GET", "http://"+srv.Addr().String()+"/g")
 		RequestBy("GET", "http://"+srv.Addr().String()+"/g")
 
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
-		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("-1"))
+		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
 		time.Sleep(2 * time.Second)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal("2"))
+		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
 
 		res.Body.Close()
 	})
-	It("smartLimiter with wrong multi-policy that should be", func() {
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-			GetID: func(req *http.Request) string {
+	t.Run("ratelimiter with wrong multi-policy that should be", func(t *testing.T) {
+		assert := assert.New(t)
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
 			RedisAddr: "127.0.0.1:6379",
@@ -485,7 +508,7 @@ var _ = Describe("smartLimiter", func() {
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.UseHandler(limiter)
 		router := gear.NewRouter()
 		router.Get("/g", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -495,8 +518,39 @@ var _ = Describe("smartLimiter", func() {
 		srv := app.Start()
 		defer srv.Close()
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/g")
-		Expect(res.StatusCode).To(Equal(200))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal(""))
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("", res.Header.Get("X-Ratelimit-Limit"))
 	})
-})
+
+	t.Run("RateLimiter without limited should be", func(t *testing.T) {
+		assert := assert.New(t)
+
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
+			RedisAddr: "127.0.0.1:6379",
+			Policy: map[string][]int{
+				"/h": []int{6, 5 * 1000},
+			},
+		})
+		app := gear.New()
+		app.UseHandler(limiter)
+		router := gear.NewRouter()
+		router.Get("/g", func(ctx *gear.Context) error {
+			return ctx.HTML(200, "")
+		})
+		app.UseHandler(router)
+
+		srv := app.Start()
+		defer srv.Close()
+		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+
+		assert.Equal(200, res.StatusCode)
+		assert.Nil(err)
+		assert.Equal("", res.Header.Get("X-Ratelimit-Limit"))
+		res.Body.Close()
+	})
+
+}

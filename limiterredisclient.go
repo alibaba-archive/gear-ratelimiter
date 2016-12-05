@@ -1,4 +1,4 @@
-package smartlimiter
+package ratelimiter
 
 import (
 	"time"

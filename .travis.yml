@@ -1,0 +1,16 @@
+sudo: false
+language: go
+go:
+  - 1.7
+  - tip
+matrix:
+  allow_failures:
+    - go: tip
+services:
+  - redis-server
+install:
+  - go get gopkg.in/redis.v5
+  - go get github.com/stretchr/testify/assert
+  - go get github.com/teambition/gear
+  - go get github.com/teambition/ratelimiter-go
+script: go test
