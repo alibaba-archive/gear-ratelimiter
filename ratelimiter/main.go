@@ -28,7 +28,7 @@ func main() {
 	logger := &middleware.DefaultLogger{W: os.Stdout}
 	app.Use(middleware.NewLogger(logger))
 	// Add rate limiter middleware
-	app.Use(limiter.GetLimiter())
+	app.UseHandler(limiter)
 
 	router := gear.NewRouter()
 	router.Get("/", func(ctx *gear.Context) error {

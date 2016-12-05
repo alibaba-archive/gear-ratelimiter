@@ -28,6 +28,10 @@ type RateLimiter struct {
 }
 
 func (l *RateLimiter) getArgs(ctx *gear.Context) (key string, p []int) {
+	id := l.options.GetID(ctx)
+	if id == "" {
+		return
+	}
 	key = ctx.Method + " " + ctx.Path
 	var ok bool
 	p, ok = l.options.Policy[key]
@@ -40,31 +44,32 @@ func (l *RateLimiter) getArgs(ctx *gear.Context) (key string, p []int) {
 			}
 		}
 	}
-	key = l.options.GetID(ctx) + key
+	key = id + key
 	return
 }
 
-//GetLimiter ...
-func (l *RateLimiter) GetLimiter() gear.Middleware {
-	return func(ctx *gear.Context) error {
-		key, p := l.getArgs(ctx)
-		if len(p) < 1 {
-			return nil
-		}
-		res, err := l.limiter.Get(key, p...)
-		if err != nil {
-			return nil
-		}
-		ctx.Set("X-Ratelimit-Limit", strconv.FormatInt(int64(res.Total), 10))
-		ctx.Set("X-Ratelimit-Remaining", strconv.FormatInt(int64(res.Remaining), 10))
-		ctx.Set("X-Ratelimit-Reset", strconv.FormatInt(res.Reset.Unix(), 10))
-		if res.Remaining < 0 {
-			after := int64(res.Reset.Sub(time.Now())) / 1e9
-			ctx.Set("Retry-After", strconv.FormatInt(after, 10))
-			return ctx.End(429, []byte(fmt.Sprintf("Rate limit exceeded, retry in %d seconds.\n", after)))
-		}
+//Serve ...
+func (l *RateLimiter) Serve(ctx *gear.Context) error {
+	key, p := l.getArgs(ctx)
+	if key == "" {
 		return nil
 	}
+	if len(p) < 1 {
+		return nil
+	}
+	res, err := l.limiter.Get(key, p...)
+	if err != nil {
+		return nil
+	}
+	ctx.Set("X-Ratelimit-Limit", strconv.FormatInt(int64(res.Total), 10))
+	ctx.Set("X-Ratelimit-Remaining", strconv.FormatInt(int64(res.Remaining), 10))
+	ctx.Set("X-Ratelimit-Reset", strconv.FormatInt(res.Reset.Unix(), 10))
+	if res.Remaining < 0 {
+		after := int64(res.Reset.Sub(time.Now())) / 1e9
+		ctx.Set("Retry-After", strconv.FormatInt(after, 10))
+		return ctx.End(429, []byte(fmt.Sprintf("Rate limit exceeded, retry in %d seconds.\n", after)))
+	}
+	return nil
 }
 
 //New ...

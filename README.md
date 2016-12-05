@@ -25,7 +25,7 @@ Smart rate limiter middleware for Gear.
 		},
 		RedisAddr: "127.0.0.1:6379",
 	})
-    app.Use(limiter.GetLimiter())
+    app.UseHandler(limiter)
 return a express gear middleware.
 
 - `options.Max`: *Optional*, Type: `int`, The max count in duration and using it when limiter cannot found the appropriate policy, default to `100`.
