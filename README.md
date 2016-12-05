@@ -1,6 +1,6 @@
 # gear-ratelimiter
-Smart rate limiter middleware for Gear.
-
+Smart rate limiter middleware for Gear.  
+[![Build Status][travis-image]][travis-url]
 ##Requirements
  - [ratelimiter-go](https://github.com/teambition/ratelimiter-go)
  - Redis 3+ with  [gopkg.in/redis.v5](gopkg.in/redis.v5)
@@ -39,3 +39,9 @@ return a express gear middleware.
 Try into github.com/teambition/gear-ratelimiter directory:  
 
     go run ratelimiter/main.go
+
+## License
+​MIT  
+
+[travis-url]: https://travis-ci.org/teambition/gear-ratelimiter
+[travis-image]: http://img.shields.io/travis/teambition/gear-ratelimiter.svg
