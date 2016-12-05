@@ -1,4 +1,4 @@
-package smartlimiter_test
+package ratelimiter_test
 
 import (
 	"compress/gzip"
@@ -13,9 +13,9 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/teambition/gear-ratelimiter"
 
 	"github.com/teambition/gear"
+	"github.com/teambition/gear-ratelimiter"
 )
 
 // ------Helpers for help test --------
@@ -90,9 +90,9 @@ func genID() string {
 }
 
 //--------- End ---------
-func TestSmartLimiterGo(t *testing.T) {
+func TestRateLimiterGo(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "SmartLimiterGo Suite")
+	RunSpecs(t, "RateLimiterGo Suite")
 }
 
 var _ = BeforeSuite(func() {
@@ -102,14 +102,16 @@ var _ = BeforeSuite(func() {
 var _ = AfterSuite(func() {
 
 })
-var _ = Describe("smartLimiter", func() {
-	It("smartLimiter with default Options should be", func() {
-
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+var _ = Describe("RateLimiter", func() {
+	It("RateLimiter with default Options should be", func() {
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		app.Use(func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
 		})
@@ -123,16 +125,19 @@ var _ = Describe("smartLimiter", func() {
 		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal(""))
 		res.Body.Close()
 	})
-	It("smartLimiter with get /a path should be", func() {
+	It("RateLimiter with get /a path should be", func() {
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET /a": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/a", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -151,16 +156,19 @@ var _ = Describe("smartLimiter", func() {
 		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
 		res.Body.Close()
 	})
-	It("smartLimiter with post /a path should be", func() {
+	It("RateLimiter with post /a path should be", func() {
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"POST /a": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Post("/a", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -176,16 +184,19 @@ var _ = Describe("smartLimiter", func() {
 		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
 		res.Body.Close()
 	})
-	It("smartLimiter with / path should be", func() {
+	It("RateLimiter with / path should be", func() {
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			Policy: map[string][]int{
 				"/": []int{6, 5 * 1000},
 			},
 			RedisAddr: "127.0.0.1:6379",
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		app.Use(func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
 		})
@@ -200,16 +211,19 @@ var _ = Describe("smartLimiter", func() {
 		res.Body.Close()
 	})
 
-	It("smartLimiter with /a path should be", func() {
+	It("RateLimiter with /a path should be", func() {
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/a": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/a", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -227,16 +241,19 @@ var _ = Describe("smartLimiter", func() {
 		res.Body.Close()
 	})
 
-	It("smartLimiter with GET path should be", func() {
+	It("RateLimiter with GET path should be", func() {
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/b", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -253,16 +270,19 @@ var _ = Describe("smartLimiter", func() {
 		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
 		res.Body.Close()
 	})
-	It("smartLimiter with GET path and twice request should be", func() {
-
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+	It("ratelimiter with GET path and twice request should be", func() {
+		id := genID()
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return id
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET": []int{6, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/c", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -272,6 +292,7 @@ var _ = Describe("smartLimiter", func() {
 		srv := app.Start()
 		defer srv.Close()
 		RequestBy("GET", "http://"+srv.Addr().String()+"/c")
+		RequestBy("GET", "http://"+srv.Addr().String()+"/c")
 		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/c")
 
 		Expect(res.StatusCode).To(Equal(200))
@@ -280,16 +301,20 @@ var _ = Describe("smartLimiter", func() {
 		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("3"))
 		res.Body.Close()
 	})
-	It("smartLimiter with /d and the request exceeds the limiter that should be", func() {
+	It("ratelimiter with /d and the request exceeds the limiter that should be", func() {
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
+		id := genID()
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return id
+			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/d": []int{3, 5 * 1000},
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/d", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -316,10 +341,10 @@ var _ = Describe("smartLimiter", func() {
 		res.Body.Close()
 	})
 
-	It("smartLimiter with GetID func request should be", func() {
+	It("RateLimiter with GetID func request should be", func() {
 
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-			GetID: func(req *http.Request) string {
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
 			RedisAddr: "127.0.0.1:6379",
@@ -328,7 +353,7 @@ var _ = Describe("smartLimiter", func() {
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/e", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -347,11 +372,11 @@ var _ = Describe("smartLimiter", func() {
 		Expect(res.Header.Get("X-Ratelimit-Remaining")).To(Equal("5"))
 		res.Body.Close()
 	})
-	It("smartLimiter with two policys that should be", func() {
+	It("RateLimiter with two policys that should be", func() {
 
 		id := genID()
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-			GetID: func(req *http.Request) string {
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
 				return id
 			},
 			RedisAddr: "127.0.0.1:6379",
@@ -360,7 +385,7 @@ var _ = Describe("smartLimiter", func() {
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/f", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -417,11 +442,11 @@ var _ = Describe("smartLimiter", func() {
 
 		res.Body.Close()
 	})
-	It("smartLimiter with multi-policy that should be", func() {
+	It("ratelimiter with multi-policy that should be", func() {
 
 		id := genID()
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-			GetID: func(req *http.Request) string {
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
 				return id
 			},
 			RedisAddr: "127.0.0.1:6379",
@@ -430,7 +455,7 @@ var _ = Describe("smartLimiter", func() {
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/g", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -474,9 +499,9 @@ var _ = Describe("smartLimiter", func() {
 
 		res.Body.Close()
 	})
-	It("smartLimiter with wrong multi-policy that should be", func() {
-		limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-			GetID: func(req *http.Request) string {
+	It("ratelimiter with wrong multi-policy that should be", func() {
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
 			RedisAddr: "127.0.0.1:6379",
@@ -485,7 +510,7 @@ var _ = Describe("smartLimiter", func() {
 			},
 		})
 		app := gear.New()
-		app.Use(limiter)
+		app.Use(limiter.GetLimiter())
 		router := gear.NewRouter()
 		router.Get("/g", func(ctx *gear.Context) error {
 			return ctx.HTML(200, "")
@@ -498,5 +523,34 @@ var _ = Describe("smartLimiter", func() {
 		Expect(res.StatusCode).To(Equal(200))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal(""))
+	})
+
+	It("RateLimiter without limited should be", func() {
+
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return genID()
+			},
+			RedisAddr: "127.0.0.1:6379",
+			Policy: map[string][]int{
+				"/h": []int{6, 5 * 1000},
+			},
+		})
+		app := gear.New()
+		app.Use(limiter.GetLimiter())
+		router := gear.NewRouter()
+		router.Get("/g", func(ctx *gear.Context) error {
+			return ctx.HTML(200, "")
+		})
+		app.UseHandler(router)
+
+		srv := app.Start()
+		defer srv.Close()
+		res, err := RequestBy("GET", "http://"+srv.Addr().String()+"/g")
+
+		Expect(res.StatusCode).To(Equal(200))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(res.Header.Get("X-Ratelimit-Limit")).To(Equal(""))
+		res.Body.Close()
 	})
 })

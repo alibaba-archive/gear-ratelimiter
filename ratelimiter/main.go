@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net"
-	"net/http"
 	"os"
 	"time"
 
@@ -12,10 +10,9 @@ import (
 )
 
 func main() {
-	limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-		GetID: func(req *http.Request) string {
-			ra, _, _ := net.SplitHostPort(req.RemoteAddr)
-			return net.ParseIP(ra).String()
+	limiter := ratelimiter.New(&ratelimiter.Options{
+		GetID: func(ctx *gear.Context) string {
+			return "user-123465"
 		},
 		Max:      10,
 		Duration: time.Minute, // limit to 1000 requests in 1 minute.
@@ -31,7 +28,7 @@ func main() {
 	logger := &middleware.DefaultLogger{W: os.Stdout}
 	app.Use(middleware.NewLogger(logger))
 	// Add rate limiter middleware
-	app.Use(limiter)
+	app.Use(limiter.GetLimiter())
 
 	router := gear.NewRouter()
 	router.Get("/", func(ctx *gear.Context) error {

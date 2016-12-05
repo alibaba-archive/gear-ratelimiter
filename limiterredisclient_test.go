@@ -1,4 +1,4 @@
-package smartlimiter_test
+package ratelimiter_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -13,7 +13,7 @@ var _ = Describe("RedisClient", func() {
 		client := redis.NewClient(&redis.Options{
 			Addr: "127.0.0.1:6379",
 		})
-		c := &smartlimiter.DefaultRedisClient{client}
+		c := &ratelimiter.DefaultRedisClient{client}
 		err := c.RateSet("testset", "1")
 		Expect(err).ToNot(HaveOccurred())
 

@@ -11,10 +11,9 @@ Smart rate limiter middleware for Gear.
 ##API
     import "github.com/teambition/gear-ratelimiter"
 ### smartLimiter(Options)
-	limiter := smartlimiter.NewLimiter(&smartlimiter.Options{
-		GetID: func(req *http.Request) string {
-			ra, _, _ := net.SplitHostPort(req.RemoteAddr)
-			return net.ParseIP(ra).String()
+	limiter := ratelimiter.New(&ratelimiter.Options{
+		GetID: func(ctx *gear.Context) string {
+			return "user-123465"
 		},
 		Max:      10,
 		Duration: time.Minute, // limit to 1000 requests in 1 minute.
@@ -26,7 +25,7 @@ Smart rate limiter middleware for Gear.
 		},
 		RedisAddr: "127.0.0.1:6379",
 	})
-    app.Use(limiter)
+    app.Use(limiter.GetLimiter())
 return a express gear middleware.
 
 - `options.Max`: *Optional*, Type: `int`, The max count in duration and using it when limiter cannot found the appropriate policy, default to `100`.
