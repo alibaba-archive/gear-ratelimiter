@@ -91,6 +91,38 @@ func genID() string {
 //--------- End ---------
 func TestRateLimiter(t *testing.T) {
 
+	t.Run("RateLimiter with not GetID func should be", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("getId function required")
+			}
+		}()
+		ratelimiter.New(&ratelimiter.Options{
+			RedisAddr: "127.0.0.1:6379",
+		})
+	})
+	t.Run("RateLimiter with  GetID()=empty should be", func(t *testing.T) {
+		assert := assert.New(t)
+		limiter := ratelimiter.New(&ratelimiter.Options{
+			GetID: func(ctx *gear.Context) string {
+				return ""
+			},
+			RedisAddr: "127.0.0.1:6379",
+		})
+		app := gear.New()
+		app.UseHandler(limiter)
+		app.Use(func(ctx *gear.Context) error {
+			return ctx.HTML(200, "")
+		})
+		srv := app.Start()
+		defer srv.Close()
+		res, err := RequestBy("GET", "http://"+srv.Addr().String())
+
+		assert.Nil(err)
+		assert.Equal(200, res.StatusCode)
+		assert.Equal("", res.Header.Get("X-Ratelimit-Limit"))
+		assert.Equal("", res.Header.Get("X-Ratelimit-Remaining"))
+	})
 	t.Run("RateLimiter with default Options should be", func(t *testing.T) {
 		assert := assert.New(t)
 		limiter := ratelimiter.New(&ratelimiter.Options{
@@ -379,7 +411,7 @@ func TestRateLimiter(t *testing.T) {
 			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
-				"/f": []int{2, 2 * 1000, 1, 1 * 1000},
+				"/f": []int{2, 300, 1, 200},
 			},
 		})
 		app := gear.New()
@@ -410,7 +442,7 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
 		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(300 * time.Millisecond)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
 		assert.Equal(200, res.StatusCode)
 		assert.Equal("1", res.Header.Get("X-Ratelimit-Limit"))
@@ -421,7 +453,7 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("1", res.Header.Get("X-Ratelimit-Limit"))
 		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(2 * 200 * time.Millisecond)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/f")
 		assert.Equal(200, res.StatusCode)
 		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
@@ -448,7 +480,7 @@ func TestRateLimiter(t *testing.T) {
 			},
 			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
-				"/g": []int{2, 2 * 1000, 1, 1 * 1000, 3, 1 * 1000, 4, 10 * 1000},
+				"/g": []int{2, 2 * 100, 1, 1 * 100, 3, 1 * 100, 4, 5 * 100},
 			},
 		})
 		app := gear.New()
@@ -472,7 +504,7 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal(429, res.StatusCode)
 		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
 		assert.Equal("1", res.Header.Get("X-Ratelimit-Limit"))
 
@@ -480,7 +512,7 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal(429, res.StatusCode)
 		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
 		assert.Equal("3", res.Header.Get("X-Ratelimit-Limit"))
 
@@ -490,7 +522,7 @@ func TestRateLimiter(t *testing.T) {
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
 		assert.Equal("-1", res.Header.Get("X-Ratelimit-Remaining"))
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 		res, err = RequestBy("GET", "http://"+srv.Addr().String()+"/g")
 		assert.Equal("2", res.Header.Get("X-Ratelimit-Limit"))
 

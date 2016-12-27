@@ -80,14 +80,12 @@ func New(opts *Options) (l *RateLimiter) {
 	client := redis.NewClient(&redis.Options{
 		Addr: opts.RedisAddr,
 	})
-	limiter, err := baselimiter.New(&DefaultRedisClient{client}, baselimiter.Options{
+	limiter := baselimiter.New(baselimiter.Options{
+		Client:   &DefaultRedisClient{client},
 		Prefix:   opts.Prefix,
 		Max:      opts.Max,
 		Duration: opts.Duration, // limit to 1000 requests in 1 minute.
 	})
-	if err != nil {
-		panic(err)
-	}
 	l = &RateLimiter{
 		limiter: limiter,
 		options: opts,

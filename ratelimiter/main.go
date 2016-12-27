@@ -1,12 +1,11 @@
 package main
 
 import (
-	"os"
 	"time"
 
 	"github.com/teambition/gear"
 	"github.com/teambition/gear-ratelimiter"
-	"github.com/teambition/gear/middleware"
+	"github.com/teambition/gear/logging"
 )
 
 func main() {
@@ -25,8 +24,8 @@ func main() {
 		RedisAddr: "127.0.0.1:6379",
 	})
 	app := gear.New()
-	logger := &middleware.DefaultLogger{W: os.Stdout}
-	app.Use(middleware.NewLogger(logger))
+	// Use a default logger middleware
+	app.UseHandler(logging.Default())
 	// Add rate limiter middleware
 	app.UseHandler(limiter)
 
