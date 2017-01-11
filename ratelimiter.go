@@ -5,20 +5,24 @@ import (
 	"strconv"
 	"time"
 
-	redis "gopkg.in/redis.v5"
-
 	"github.com/teambition/gear"
 	baselimiter "github.com/teambition/ratelimiter-go"
 )
 
-//Options ...
+// Options for Limiter
 type Options struct {
-	RedisAddr string
-	Prefix    string
-	Max       int
-	Duration  time.Duration
-	GetID     func(ctx *gear.Context) string
-	Policy    map[string][]int
+	// Key prefix, default is "LIMIT:".
+	Prefix string
+	// The max count in duration for no policy, default is 100.
+	Max int
+	// Count duration for no policy, default is 1 Minute.
+	Duration time.Duration
+	// Policy is a map of custom limiter policy.
+	Policy map[string][]int
+	// GetID returns limiter id for a request.
+	GetID func(ctx *gear.Context) string
+	// Use a redis client for limiter, if omit, it will use a memory limiter.
+	Client baselimiter.RedisClient
 }
 
 //RateLimiter ...
@@ -40,7 +44,7 @@ func (l *RateLimiter) getArgs(ctx *gear.Context) (key string, p []int) {
 		if p, ok = l.options.Policy[key]; !ok {
 			key = ctx.Method
 			if p, ok = l.options.Policy[key]; !ok {
-				return key, nil
+				p = []int{} // It will use Options.Max and Options.Duration if no policy
 			}
 		}
 	}
@@ -61,13 +65,14 @@ func (l *RateLimiter) Serve(ctx *gear.Context) error {
 	if err != nil {
 		return nil
 	}
-	ctx.Set("X-Ratelimit-Limit", strconv.FormatInt(int64(res.Total), 10))
-	ctx.Set("X-Ratelimit-Remaining", strconv.FormatInt(int64(res.Remaining), 10))
-	ctx.Set("X-Ratelimit-Reset", strconv.FormatInt(res.Reset.Unix(), 10))
+	ctx.Set("X-Ratelimit-Limit", strconv.Itoa(res.Total))
+	ctx.Set("X-Ratelimit-Remaining", strconv.Itoa(res.Remaining))
+	ctx.Set("X-Ratelimit-Reset", strconv.Itoa(int(res.Reset.Unix())))
 	if res.Remaining < 0 {
-		after := int64(res.Reset.Sub(time.Now())) / 1e9
-		ctx.Set("Retry-After", strconv.FormatInt(after, 10))
-		return ctx.End(429, []byte(fmt.Sprintf("Rate limit exceeded, retry in %d seconds.\n", after)))
+		after := int(res.Reset.Sub(time.Now()).Seconds())
+		ctx.Set("Retry-After", strconv.Itoa(after))
+		return ctx.Error(&gear.Error{Code: 429,
+			Msg: fmt.Sprintf("Rate limit exceeded, retry in %d seconds.\n", after)})
 	}
 	return nil
 }
@@ -77,18 +82,12 @@ func New(opts *Options) (l *RateLimiter) {
 	if opts.GetID == nil {
 		panic("getId function required")
 	}
-	client := redis.NewClient(&redis.Options{
-		Addr: opts.RedisAddr,
-	})
+
 	limiter := baselimiter.New(baselimiter.Options{
-		Client:   &DefaultRedisClient{client},
 		Prefix:   opts.Prefix,
 		Max:      opts.Max,
-		Duration: opts.Duration, // limit to 1000 requests in 1 minute.
+		Duration: opts.Duration,
+		Client:   opts.Client,
 	})
-	l = &RateLimiter{
-		limiter: limiter,
-		options: opts,
-	}
-	return
+	return &RateLimiter{options: opts, limiter: limiter}
 }

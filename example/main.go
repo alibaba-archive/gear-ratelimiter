@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	// use memory limiter.
 	limiter := ratelimiter.New(&ratelimiter.Options{
 		GetID: func(ctx *gear.Context) string {
 			return "user-123465"
@@ -21,7 +22,6 @@ func main() {
 			"GET /b": []int{5, 60 * 1000},
 			"/c":     []int{6, 60 * 1000},
 		},
-		RedisAddr: "127.0.0.1:6379",
 	})
 	app := gear.New()
 	// Use a default logger middleware

@@ -27,7 +27,14 @@ import "github.com/teambition/gear-ratelimiter"
 ### smartLimiter(Options)
 
 ```go
+import (
+  "github.com/teambition/gear-ratelimiter"
+  redisClient "github.com/teambition/gear-ratelimiter/redis"
+	redis "gopkg.in/redis.v5"
+)
+
 limiter := ratelimiter.New(&ratelimiter.Options{
+  Client: redisClient.NewRedisClient(&redis.Options{Addr: "127.0.0.1:6379"})
   GetID: func(ctx *gear.Context) string {
     return "user-123465"
   },
@@ -39,16 +46,15 @@ limiter := ratelimiter.New(&ratelimiter.Options{
     "GET /b": []int{5, 60 * 1000},
     "/c":     []int{6, 60 * 1000},
   },
-  RedisAddr: "127.0.0.1:6379",
 })
 app.UseHandler(limiter)
 ```
 
 returns a express gear middleware.
 
+- `options.Client`: *Optional*, a wrapped redis client. if omit, it will use memory limiter.
 - `options.Max`: *Optional*, Type: `int`, The max count in duration and using it when limiter cannot found the appropriate policy, default to `100`.
 - `options.Prefix`: *Optional*, Type: `String`, redis key namespace, default to `LIMIT`.
-- `options.RedisAddr`: *Optional*, Redis address such as "127.0.0.1:6379"
 - `options.Duration`: *Optional*, {Number}, of limit in milliseconds, default to `3600000`
 - `options.GetID`: *Optional*, {Function}, generate a identifier for requests, default to user's IP
 - `options.Policy`: *Required*, {map[string][]int}, limit policy
@@ -58,7 +64,7 @@ returns a express gear middleware.
 Try into github.com/teambition/gear-ratelimiter directory:
 
 ```bash
-go run ratelimiter/main.go
+go run example/main.go
 ```
 
 ## License

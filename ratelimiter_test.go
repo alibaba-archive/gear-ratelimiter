@@ -15,6 +15,9 @@ import (
 
 	"github.com/teambition/gear"
 	"github.com/teambition/gear-ratelimiter"
+	client "github.com/teambition/gear-ratelimiter/redis"
+	baselimiter "github.com/teambition/ratelimiter-go"
+	redis "gopkg.in/redis.v5"
 )
 
 // ------Helpers for help test --------
@@ -89,25 +92,31 @@ func genID() string {
 }
 
 //--------- End ---------
-func TestRateLimiter(t *testing.T) {
 
+func TestRateLimiterWithMemory(t *testing.T) {
 	t.Run("RateLimiter with not GetID func should be", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
 				t.Errorf("getId function required")
 			}
 		}()
-		ratelimiter.New(&ratelimiter.Options{
-			RedisAddr: "127.0.0.1:6379",
-		})
+		ratelimiter.New(&ratelimiter.Options{})
 	})
+	testcase(t, nil)
+}
+
+func TestRateLimiterWithRedis(t *testing.T) {
+	testcase(t, client.NewRedisClient(&redis.Options{Addr: "127.0.0.1:6379"}))
+}
+
+func testcase(t *testing.T, Client baselimiter.RedisClient) {
 	t.Run("RateLimiter with  GetID()=empty should be", func(t *testing.T) {
 		assert := assert.New(t)
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return ""
 			},
-			RedisAddr: "127.0.0.1:6379",
 		})
 		app := gear.New()
 		app.UseHandler(limiter)
@@ -123,13 +132,14 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("", res.Header.Get("X-Ratelimit-Limit"))
 		assert.Equal("", res.Header.Get("X-Ratelimit-Remaining"))
 	})
+
 	t.Run("RateLimiter with default Options should be", func(t *testing.T) {
 		assert := assert.New(t)
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
-			RedisAddr: "127.0.0.1:6379",
 		})
 		app := gear.New()
 		app.UseHandler(limiter)
@@ -146,14 +156,15 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
+
 	t.Run("RateLimiter with get /a path should be", func(t *testing.T) {
 		assert := assert.New(t)
 
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET /a": []int{6, 5 * 1000},
 			},
@@ -178,14 +189,15 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
+
 	t.Run("RateLimiter with post /a path should be", func(t *testing.T) {
 		assert := assert.New(t)
 
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"POST /a": []int{6, 5 * 1000},
 			},
@@ -207,17 +219,18 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
+
 	t.Run("RateLimiter with / path should be", func(t *testing.T) {
 		assert := assert.New(t)
 
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
 			Policy: map[string][]int{
 				"/": []int{6, 5 * 1000},
 			},
-			RedisAddr: "127.0.0.1:6379",
 		})
 		app := gear.New()
 		app.UseHandler(limiter)
@@ -239,10 +252,10 @@ func TestRateLimiter(t *testing.T) {
 		assert := assert.New(t)
 
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/a": []int{6, 5 * 1000},
 			},
@@ -270,10 +283,10 @@ func TestRateLimiter(t *testing.T) {
 		assert := assert.New(t)
 
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET": []int{6, 5 * 1000},
 			},
@@ -296,14 +309,15 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
+
 	t.Run("ratelimiter with GET path and twice request should be", func(t *testing.T) {
 		assert := assert.New(t)
 		id := genID()
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return id
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"GET": []int{6, 5 * 1000},
 			},
@@ -328,15 +342,16 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("3", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
+
 	t.Run("ratelimiter with /d and the request exceeds the limiter that should be", func(t *testing.T) {
 		assert := assert.New(t)
 
 		id := genID()
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return id
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/d": []int{3, 5 * 1000},
 			},
@@ -373,10 +388,10 @@ func TestRateLimiter(t *testing.T) {
 		assert := assert.New(t)
 
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/e": []int{6, 5 * 1000},
 			},
@@ -401,15 +416,16 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("5", res.Header.Get("X-Ratelimit-Remaining"))
 		res.Body.Close()
 	})
+
 	t.Run("RateLimiter with two policys that should be", func(t *testing.T) {
 		assert := assert.New(t)
 
 		id := genID()
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return id
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/f": []int{2, 300, 1, 200},
 			},
@@ -470,15 +486,16 @@ func TestRateLimiter(t *testing.T) {
 
 		res.Body.Close()
 	})
+
 	t.Run("ratelimiter with multi-policy that should be", func(t *testing.T) {
 		assert := assert.New(t)
 
 		id := genID()
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return id
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/g": []int{2, 2 * 100, 1, 1 * 100, 3, 1 * 100, 4, 5 * 100},
 			},
@@ -528,13 +545,14 @@ func TestRateLimiter(t *testing.T) {
 
 		res.Body.Close()
 	})
+
 	t.Run("ratelimiter with wrong multi-policy that should be", func(t *testing.T) {
 		assert := assert.New(t)
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/g": []int{2, 2 * 1000, 1 * 1000, 3, 1 * 1000, 4, 10 * 1000},
 			},
@@ -559,10 +577,10 @@ func TestRateLimiter(t *testing.T) {
 		assert := assert.New(t)
 
 		limiter := ratelimiter.New(&ratelimiter.Options{
+			Client: Client,
 			GetID: func(ctx *gear.Context) string {
 				return genID()
 			},
-			RedisAddr: "127.0.0.1:6379",
 			Policy: map[string][]int{
 				"/h": []int{6, 5 * 1000},
 			},
@@ -584,5 +602,4 @@ func TestRateLimiter(t *testing.T) {
 		assert.Equal("", res.Header.Get("X-Ratelimit-Limit"))
 		res.Body.Close()
 	})
-
 }
