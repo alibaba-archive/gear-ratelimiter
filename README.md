@@ -1,16 +1,11 @@
 Gear-Ratelimiter
 =====
-Smart rate limiter middleware for Gear.
+Smart rate limiter middleware for Gear, base on redis or memory limiter.
 
 [![Build Status](http://img.shields.io/travis/teambition/gear-ratelimiter.svg?style=flat-square)](https://travis-ci.org/teambition/gear-ratelimiter)
 [![Coverage Status](http://img.shields.io/coveralls/teambition/gear-ratelimiter.svg?style=flat-square)](https://coveralls.io/r/teambition/gear-ratelimiter)
 [![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/teambition/gear-ratelimiter/master/LICENSE)
 [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](http://godoc.org/github.com/teambition/gear-ratelimiter)
-
-## Requirements
-
-- [ratelimiter-go](https://github.com/teambition/ratelimiter-go)
-- Redis 3+ with  [gopkg.in/redis.v5](gopkg.in/redis.v5)
 
 ## Installation
 
@@ -18,13 +13,11 @@ Smart rate limiter middleware for Gear.
 go get github.com/teambition/gear-ratelimiter
 ```
 
-## API
-
 ```bash
 import "github.com/teambition/gear-ratelimiter"
 ```
 
-### smartLimiter(Options)
+## Demo
 
 ```go
 import (
@@ -50,7 +43,11 @@ limiter := ratelimiter.New(&ratelimiter.Options{
 app.UseHandler(limiter)
 ```
 
-returns a express gear middleware.
+## API
+
+### ratelimiter.New(ratelimiter.Options)
+
+returns a Gear middleware handler.
 
 - `options.Client`: *Optional*, a wrapped redis client. if omit, it will use memory limiter.
 - `options.Max`: *Optional*, Type: `int`, The max count in duration and using it when limiter cannot found the appropriate policy, default to `100`.
