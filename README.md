@@ -1,5 +1,5 @@
-Gear-Ratelimiter
-=====
+# Gear-Ratelimiter
+
 Smart rate limiter middleware for Gear, base on redis or memory limiter.
 
 [![Build Status](http://img.shields.io/travis/teambition/gear-ratelimiter.svg?style=flat-square)](https://travis-ci.org/teambition/gear-ratelimiter)
@@ -23,7 +23,7 @@ import "github.com/teambition/gear-ratelimiter"
 import (
   "github.com/teambition/gear-ratelimiter"
   redisClient "github.com/teambition/gear-ratelimiter/redis"
-	redis "gopkg.in/redis.v5"
+  redis "gopkg.in/redis.v5"
 )
 
 limiter := ratelimiter.New(&ratelimiter.Options{
@@ -65,5 +65,6 @@ go run example/main.go
 ```
 
 ## License
+
 Gear-Ratelimiter is licensed under the [MIT](https://github.com/teambition/gear-ratelimiter/blob/master/LICENSE) license.
-Copyright &copy; 2016 [Teambition](https://www.teambition.com).
+Copyright &copy; 2016-2017 [Teambition](https://www.teambition.com).

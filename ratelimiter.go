@@ -1,13 +1,15 @@
 package ratelimiter
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/teambition/gear"
 	baselimiter "github.com/teambition/ratelimiter-go"
 )
+
+// Version is ratelimiter's version
+const Version = "1.0.1"
 
 // Options for Limiter
 type Options struct {
@@ -71,8 +73,7 @@ func (l *RateLimiter) Serve(ctx *gear.Context) error {
 	if res.Remaining < 0 {
 		after := int(res.Reset.Sub(time.Now()).Seconds())
 		ctx.Set("Retry-After", strconv.Itoa(after))
-		return ctx.Error(&gear.Error{Code: 429,
-			Msg: fmt.Sprintf("Rate limit exceeded, retry in %d seconds.\n", after)})
+		return gear.ErrTooManyRequests.WithMsgf("Rate limit exceeded, retry in %d seconds.", after)
 	}
 	return nil
 }
