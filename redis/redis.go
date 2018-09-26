@@ -3,8 +3,8 @@ package redis
 import (
 	"time"
 
+	"github.com/go-redis/redis"
 	baselimiter "github.com/teambition/ratelimiter-go"
-	redis "gopkg.in/redis.v5"
 )
 
 // NewRedisClient returns a new RedisClient with redis cluster options.
