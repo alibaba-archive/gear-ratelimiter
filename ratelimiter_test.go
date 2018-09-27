@@ -11,13 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/stretchr/testify/assert"
-
 	"github.com/teambition/gear"
 	"github.com/teambition/gear-ratelimiter"
 	client "github.com/teambition/gear-ratelimiter/redis"
 	baselimiter "github.com/teambition/ratelimiter-go"
-	redis "gopkg.in/redis.v5"
 )
 
 // ------Helpers for help test --------

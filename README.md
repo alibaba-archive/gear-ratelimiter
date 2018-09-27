@@ -23,7 +23,7 @@ import "github.com/teambition/gear-ratelimiter"
 import (
   "github.com/teambition/gear-ratelimiter"
   redisClient "github.com/teambition/gear-ratelimiter/redis"
-  redis "gopkg.in/redis.v5"
+  "github.com/go-redis/redis"
 )
 
 limiter := ratelimiter.New(&ratelimiter.Options{
